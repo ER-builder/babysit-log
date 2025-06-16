@@ -180,7 +180,7 @@
           const desc = item.querySelector('input[type="text"]').value;
           const amtInput = item.querySelector('input[type="number"]');
           const amt = amtInput && amtInput.value ? parseFloat(amtInput.value) : 0;
-          if (desc && amt) {
+          if (desc && amt > 0) {
             expenseDetails += ` - ${desc} £${amt.toFixed(2)}\n`;
             dayExpenseTotal += amt;
           }
@@ -216,4 +216,3 @@
 
 </body>
 </html>
-
