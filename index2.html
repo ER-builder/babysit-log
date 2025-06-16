@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Babysit Log</title>
+  <link rel="icon" href="https://fav.farm/👶" type="image/png">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      padding: 1em;
+      max-width: 600px;
+      margin: auto;
+      background: #f9f9f9;
+      color: #333;
+    }
+    h2, h3 {
+      text-align: center;
+    }
+    input, button, textarea {
+      width: 100%;
+      margin: 0.5em 0;
+      padding: 0.75em;
+      font-size: 1em;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+      box-sizing: border-box;
+    }
+    button {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .small {
+      width: auto;
+      padding: 0.3em 1em;
+      font-size: 0.9em;
+      background: #28a745;
+    }
+    .small:hover {
+      background: #218838;
+    }
+    .day-entry {
+      background: white;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+      border-radius: 8px;
+      padding: 1em;
+      margin-bottom: 1em;
+    }
+    .expenses {
+      margin-top: 1em;
+    }
+    .expense-item {
+      display: flex;
+      gap: 0.5em;
+      margin-bottom: 0.5em;
+    }
+    .expense-item input {
+      flex: 1;
+    }
+    textarea {
+      background: #eef;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Babysitting Log</h2>
+  <form id="logForm">
+    <div id="daysContainer"></div>
+    <button type="button" class="small" onclick="addDay()">+ Add a Day</button>
+    <button type="button" class="small" onclick="toggleWeek()" id="weekBtn">+ Add a Full Week</button>
+    <button type="button" onclick="generateSummary()">Generate Summary</button>
+  </form>
+
+  <h3>Summary</h3>
+  <textarea id="summaryOutput" rows="10" readonly></textarea><br>
+  <button onclick="copyToClipboard()">Copy to Clipboard</button>
+  <button onclick="shareToWhatsApp()">Share via WhatsApp</button>
+
+  <script>
+    let dayCount = 0;
+    let weekMode = false;
+
+    function addDay(date = '') {
+      dayCount++;
+      const container = document.getElementById('daysContainer');
+      const div = document.createElement('div');
+      div.className = 'day-entry';
+      div.id = `day${dayCount}`;
+      div.innerHTML = `
+        <label>Date: <input type="date" name="date${dayCount}" value="${date}" required></label><br>
+        <label>Start time: <input type="time" name="start${dayCount}" required></label><br>
+        <label>End time: <input type="time" name="end${dayCount}" required></label><br>
+        <div class="expenses">
+          <label>Expenses:</label>
+          <div class="expense-item">
+            <input type="text" placeholder="Description" name="expense${dayCount}_1_desc">
+            <input type="number" step="0.01" placeholder="£" name="expense${dayCount}_1_amt">
+          </div>
+          <button type="button" class="small" onclick="addExpense('${div.id}')">+ Add Another Expense Row</button>
+        </div>
+      `;
+      container.appendChild(div);
+    }
+
+    function toggleWeek() {
+      const weekBtn = document.getElementById('weekBtn');
+      const container = document.getElementById('daysContainer');
+      if (!weekMode) {
+        container.innerHTML = '';
+        addWeek();
+        weekBtn.innerText = '← Back to Single Day';
+        weekMode = true;
+      } else {
+        container.innerHTML = '';
+        dayCount = 0;
+        addDay();
+        weekBtn.innerText = '+ Add a Full Week';
+        weekMode = false;
+      }
+    }
+
+    function addWeek() {
+      const now = new Date();
+      const day = now.getDay();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((day + 6) % 7));
+      for (let i = 0; i < 7; i++) {
+        const date = new Date(monday);
+        date.setDate(monday.getDate() + i);
+        const formattedDate = date.toISOString().split('T')[0];
+        addDay(formattedDate);
+      }
+    }
+
+    function addExpense(dayId) {
+      const container = document.querySelector(`#${dayId} .expenses`);
+      const index = container.querySelectorAll('.expense-item').length + 1;
+      const div = document.createElement('div');
+      div.className = 'expense-item';
+      div.innerHTML = `
+        <input type="text" placeholder="Description" name="expense${dayId}_${index}_desc">
+        <input type="number" step="0.01" placeholder="£" name="expense${dayId}_${index}_amt">
+      `;
+      container.insertBefore(div, container.lastElementChild);
+    }
+
+    function timeDiff(start, end) {
+      const [sh, sm] = start.split(":").map(Number);
+      const [eh, em] = end.split(":").map(Number);
+      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+    }
+
+    function generateSummary() {
+      let summary = `Babysitting Log\n`;
+      let totalHours = 0;
+      let totalExpense = 0;
+
+      for (let i = 1; i <= dayCount; i++) {
+        const date = document.querySelector(`[name=date${i}]`).value;
+        const start = document.querySelector(`[name=start${i}]`).value;
+        const end = document.querySelector(`[name=end${i}]`).value;
+        if (!date || !start || !end) continue;
+        const hours = timeDiff(start, end);
+        totalHours += hours;
+
+        summary += `\n📅 ${date}: ${hours.toFixed(2)}h\n`;
+
+        const expenseInputs = document.querySelectorAll(`#day${i} .expense-item`);
+        let dayExpenseTotal = 0;
+        let expenseDetails = "";
+
+        expenseInputs.forEach(item => {
+          const desc = item.querySelector('input[type="text"]').value;
+          const amtInput = item.querySelector('input[type="number"]');
+          const amt = amtInput && amtInput.value ? parseFloat(amtInput.value) : 0;
+          if (desc && amt) {
+            expenseDetails += ` - ${desc} £${amt.toFixed(2)}\n`;
+            dayExpenseTotal += amt;
+          }
+        });
+
+        if (expenseDetails) {
+          summary += `💸 Expenses:\n${expenseDetails}`;
+        }
+
+        totalExpense += dayExpenseTotal;
+      }
+
+      summary += `\n-------------------------\nTotal Hours: ${totalHours.toFixed(2)}h\nTotal Expenses: £${totalExpense.toFixed(2)}\n`;
+      document.getElementById("summaryOutput").value = summary;
+    }
+
+    function copyToClipboard() {
+      const text = document.getElementById("summaryOutput");
+      text.select();
+      document.execCommand("copy");
+    }
+
+    function shareToWhatsApp() {
+      const text = document.getElementById("summaryOutput").value;
+      if (text) {
+        const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+        window.open(url, "_blank");
+      }
+    }
+
+    window.onload = () => addDay();
+  </script>
+
+</body>
+</html>
