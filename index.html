@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Babysit Log</title>
+  <title>Dana & The Kids 🧑‍🧒‍🧒</title>
   <link rel="icon" href="https://fav.farm/👶" type="image/png">
   <style>
     body {
@@ -70,12 +70,13 @@
 </head>
 <body>
 
-  <h2>Babysitting Log</h2>
+  <h2>Dana & The Kids 👨‍👩‍👧‍👦</h2>
   <form id="logForm">
     <div id="daysContainer"></div>
-    <button type="button" class="small" onclick="addDay()">+ Add a Day</button>
-    <button type="button" class="small" onclick="toggleWeek()" id="weekBtn">+ Add a Full Week</button>
+    <button type="button" class="small" onclick="addDay(); showHomeButtons()">+ Add a Day</button>
+    <button type="button" class="small" onclick="toggleWeek(); showHomeButtons()" id="weekBtn">+ Add a Full Week</button>
     <button type="button" onclick="generateSummary()">Generate Summary</button>
+    <button type="button" onclick="clearLocalStorage()">Clear Saved Form</button>
   </form>
 
   <h3>Summary</h3>
@@ -87,6 +88,32 @@
     let dayCount = 0;
     let weekMode = false;
 
+    function saveToLocalStorage() {
+      const formData = document.getElementById("logForm").innerHTML;
+      localStorage.setItem("babysitLogFormData", formData);
+    }
+
+    function loadFromLocalStorage() {
+      const savedData = localStorage.getItem("babysitLogFormData");
+      if (savedData) {
+        document.getElementById("logForm").innerHTML = savedData;
+        const allButtons = document.querySelectorAll('button');
+        allButtons.forEach(btn => {
+          if (btn.innerText.includes("Add a Day")) btn.onclick = () => addDay();
+          else if (btn.innerText.includes("Full Week") || btn.innerText.includes("Back to Single")) btn.onclick = () => toggleWeek();
+          else if (btn.innerText.includes("Generate Summary")) btn.onclick = () => generateSummary();
+          else if (btn.innerText.includes("Clear Saved Form")) btn.onclick = () => clearLocalStorage();
+        });
+        return true;
+      }
+      return false;
+    }
+
+    function clearLocalStorage() {
+      localStorage.removeItem("babysitLogFormData");
+      location.reload();
+    }
+
     function addDay(date = '') {
       dayCount++;
       const container = document.getElementById('daysContainer');
@@ -95,18 +122,19 @@
       div.id = `day${dayCount}`;
       div.innerHTML = `
         <label>Date: <input type="date" name="date${dayCount}" value="${date}" required></label><br>
-        <label>Start time: <input type="time" name="start${dayCount}" required></label><br>
-        <label>End time: <input type="time" name="end${dayCount}" required></label><br>
+        <label>Start time: <input type="time" name="start${dayCount}" required step="600"></label><br>
+        <label>End time: <input type="time" name="end${dayCount}" required step="600"></label><br>
         <div class="expenses">
           <label>Expenses:</label>
           <div class="expense-item">
             <input type="text" placeholder="Description" name="expense${dayCount}_1_desc">
-            <input type="number" step="0.01" placeholder="£" name="expense${dayCount}_1_amt">
+            <input type="number" step="0.5" placeholder="£" name="expense${dayCount}_1_amt">
           </div>
-          <button type="button" class="small" onclick="addExpense('${div.id}')">+ Add Another Expense Row</button>
+          <button type="button" class="small" onclick="addExpense('day${dayCount}')">+ Add Another Expense Row</button>
         </div>
       `;
       container.appendChild(div);
+      saveToLocalStorage();
     }
 
     function toggleWeek() {
@@ -114,6 +142,7 @@
       const container = document.getElementById('daysContainer');
       if (!weekMode) {
         container.innerHTML = '';
+        dayCount = 0;
         addWeek();
         weekBtn.innerText = '← Back to Single Day';
         weekMode = true;
@@ -124,6 +153,7 @@
         weekBtn.innerText = '+ Add a Full Week';
         weekMode = false;
       }
+      saveToLocalStorage();
     }
 
     function addWeek() {
@@ -146,15 +176,19 @@
       div.className = 'expense-item';
       div.innerHTML = `
         <input type="text" placeholder="Description" name="expense${dayId}_${index}_desc">
-        <input type="number" step="0.01" placeholder="£" name="expense${dayId}_${index}_amt">
+        <input type="number" step="0.5" placeholder="£" name="expense${dayId}_${index}_amt">
       `;
       container.insertBefore(div, container.lastElementChild);
+      saveToLocalStorage();
     }
 
     function timeDiff(start, end) {
-      const [sh, sm] = start.split(":").map(Number);
-      const [eh, em] = end.split(":").map(Number);
-      return ((eh * 60 + em) - (sh * 60 + sm)) / 60;
+      const [sh, sm] = start.split(":" ).map(Number);
+      const [eh, em] = end.split(":" ).map(Number);
+      let startMinutes = sh * 60 + sm;
+      let endMinutes = eh * 60 + em;
+      if (endMinutes < startMinutes) endMinutes += 24 * 60; // handle past midnight
+      return (endMinutes - startMinutes) / 60;
     }
 
     function generateSummary() {
@@ -163,9 +197,9 @@
       let totalExpense = 0;
 
       for (let i = 1; i <= dayCount; i++) {
-        const date = document.querySelector(`[name=date${i}]`).value;
-        const start = document.querySelector(`[name=start${i}]`).value;
-        const end = document.querySelector(`[name=end${i}]`).value;
+        const date = document.querySelector(`[name=date${i}]`)?.value;
+        const start = document.querySelector(`[name=start${i}]`)?.value;
+        const end = document.querySelector(`[name=end${i}]`)?.value;
         if (!date || !start || !end) continue;
         const hours = timeDiff(start, end);
         totalHours += hours;
@@ -180,7 +214,7 @@
           const desc = item.querySelector('input[type="text"]').value;
           const amtInput = item.querySelector('input[type="number"]');
           const amt = amtInput && amtInput.value ? parseFloat(amtInput.value) : 0;
-          if (desc && amt > 0) {
+          if (desc && amt) {
             expenseDetails += ` - ${desc} £${amt.toFixed(2)}\n`;
             dayExpenseTotal += amt;
           }
@@ -211,7 +245,9 @@
       }
     }
 
-    window.onload = () => addDay();
+    window.onload = () => {
+      if (!loadFromLocalStorage()) addDay();
+    };
   </script>
 
 </body>
